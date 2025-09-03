@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selezionatore di Regole</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <style>
+        .drop-zone {
+            border: 2px dashed #3b82f6;
+            transition: all 0.3s ease;
+        }
+        .drop-zone:hover, .drop-zone.active {
+            border-color: #1d4ed8;
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .filter-badge {
+            transition: all 0.2s ease;
+        }
+        .filter-badge:hover {
+            transform: scale(1.05);
+        }
+        .filter-badge.selected {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .filter-badge.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #e5e7eb;
+            color: #9ca3af;
+        }
+        .debug-info {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .slide-up {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+        }
+        .slide-down {
+            max-height: 500px;
+            transition: max-height 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-indigo-800 mb-2">Selezionatore di Regole</h1>
+            <p class="text-gray-600">Carica un file CSV con separatore ";" e colonna REGOLA per filtrare in base ai parametri</p>
+        </header>
+
+        <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="p-6">
+                <div id="upload-section" class="mb-6 slide-down">
+                    <div id="drop-zone" class="drop-zone rounded-lg p-8 text-center cursor-pointer">
+                        <div class="flex flex-col items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <p class="text-lg font-medium text-gray-700">Trascina qui il tuo file CSV</p>
+                            <p class="text-sm text-gray-500 mt-1">con separatore ";" e colonna REGOLA</p>
+                            <label class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition cursor-pointer">
+                                Seleziona file
+                                <input type="file" id="file-input" accept=".csv" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="loading" class="hidden">
+                    <div class="flex justify-center items-center space-x-2">
+                        <div class="w-4 h-4 rounded-full bg-blue-600 animate-pulse"></div>
+                        <div class="w-4 h-4 rounded-full bg-blue-600 animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-4 h-4 rounded-full bg-blue-600 animate-pulse" style="animation-delay: 0.4s"></div>
+                    </div>
+                </div>
+
+                <div id="data-section" class="hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-800">Filtri Regole</h2>
+                        <div class="space-x-2">
+                            <button id="show-upload" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                                Carica nuovo file
+                            </button>
+                            <button id="analyze-rules" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                                Analizza regole
+                            </button>
+                            <button id="reset-filters" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                Reimposta filtri
+                            </button>
+                            <button id="toggle-debug" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                Debug
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="debug-panel" class="mb-4 p-4 bg-gray-100 rounded-lg hidden">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Informazioni di debug</h3>
+                        <div id="debug-info" class="debug-info p-2 bg-gray-800 text-green-400 rounded"></div>
+                    </div>
+
+                    <div id="rule-filters" class="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-4">Seleziona i valori per filtrare le regole:</p>
+                        <div id="filter-controls" class="space-y-4">
+                            <!-- Dynamic filter controls will be inserted here -->
+                            <div class="text-center text-gray-400 py-4">Caricamento dei filtri in corso...</div>
+                        </div>
+                    </div>
+
+                    <div class="table-container border rounded-lg">
+                        <table id="data-table" class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr id="table-header"></tr>
+                            </thead>
+                            <tbody id="table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 flex justify-between items-center">
+                        <div class="text-sm text-gray-600">
+                            <span id="row-count">0</span> righe visualizzate
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="prev-page" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition disabled:opacity-50" disabled>
+                                Precedente
+                            </button>
+                            <span id="page-info" class="px-3 py-1">Pagina 1</span>
+                            <button id="next-page" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition disabled:opacity-50" disabled>
+                                Successiva
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const loadingElement = document.getElementById('loading');
+            const dataSection = document.getElementById('data-section');
+            const uploadSection = document.getElementById('upload-section');
+            const tableHeader = document.getElementById('table-header');
+            const tableBody = document.getElementById('table-body');
+            const rowCount = document.getElementById('row-count');
+            const prevPageBtn = document.getElementById('prev-page');
+            const nextPageBtn = document.getElementById('next-page');
+            const pageInfo = document.getElementById('page-info');
+            const filterControls = document.getElementById('filter-controls');
+            const resetFiltersBtn = document.getElementById('reset-filters');
+            const analyzeRulesBtn = document.getElementById('analyze-rules');
+            const toggleDebugBtn = document.getElementById('toggle-debug');
+            const showUploadBtn = document.getElementById('show-upload');
+            const debugPanel = document.getElementById('debug-panel');
+            const debugInfo = document.getElementById('debug-info');
+
+            let csvData = [];
+            let headers = [];
+            let currentPage = 1;
+            let rowsPerPage = 30; // 30 rows per page
+            let filteredData = [];
+            let ruleFields = {}; // Will store field names and their possible values
+            let activeFilters = {}; // Will store currently selected filter values
+            let availableFilters = {}; // Will store available filter values based on current selection
+            let debugLog = [];
+
+            // Handle drag and drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropZone.classList.add('active');
+            }
+
+            function unhighlight() {
+                dropZone.classList.remove('active');
+            }
+
+            dropZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+
+            showUploadBtn.addEventListener('click', function() {
+                uploadSection.classList.remove('slide-up');
+                uploadSection.classList.add('slide-down');
+            });
+
+            function handleFiles(files) {
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        parseCSV(file);
+                    } else {
+                        alert('Per favore carica un file CSV valido.');
+                    }
+                }
+            }
+
+            function parseCSV(file) {
+                loadingElement.classList.remove('hidden');
+                debugLog = [];
+                addDebugMessage("Inizio parsing del file CSV...");
+                
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    delimiter: ';', // Set delimiter to semicolon
+                    complete: function(results) {
+                        loadingElement.classList.add('hidden');
+                        dataSection.classList.remove('hidden');
+                        
+                        // Hide upload section
+                        uploadSection.classList.remove('slide-down');
+                        uploadSection.classList.add('slide-up');
+                        
+                        if (results.data && results.data.length > 0) {
+                            csvData = results.data.filter(row => Object.values(row).some(val => val !== null && val !== ''));
+                            headers = results.meta.fields;
+                            filteredData = [...csvData];
+                            
+                            addDebugMessage(`CSV caricato con successo. ${csvData.length} righe trovate.`);
+                            addDebugMessage(`Colonne trovate: ${headers.join(', ')}`);
+                            
+                            // Check if REGOLA column exists
+                            const regolaColumnIndex = headers.findIndex(h => 
+                                h === 'REGOLA' || h === 'regola' || h.toLowerCase() === 'regola'
+                            );
+                            
+                            if (regolaColumnIndex === -1) {
+                                addDebugMessage("ERRORE: Colonna REGOLA non trovata!", "error");
+                                alert('Il file CSV non contiene una colonna chiamata "REGOLA".');
+                                filterControls.innerHTML = '<div class="text-center text-red-500">Colonna REGOLA non trovata nel file CSV</div>';
+                            } else {
+                                const regolaColumn = headers[regolaColumnIndex];
+                                addDebugMessage(`Colonna REGOLA trovata: "${regolaColumn}"`);
+                                
+                                // Show some sample values from REGOLA column
+                                addDebugMessage("Esempi di valori nella colonna REGOLA:");
+                                for (let i = 0; i < Math.min(5, csvData.length); i++) {
+                                    addDebugMessage(`  ${i+1}. ${csvData[i][regolaColumn]}`);
+                                }
+                                
+                                // Parse rules and extract fields and values
+                                parseRules(regolaColumn);
+                                
+                                // Initialize available filters with all possible values
+                                initializeAvailableFilters();
+                                
+                                // Create filter controls
+                                createFilterControls();
+                            }
+                            
+                            displayData();
+                        } else {
+                            addDebugMessage("ERRORE: Il file CSV non contiene dati validi.", "error");
+                            alert('Il file CSV non contiene dati validi.');
+                        }
+                        
+                        updateDebugPanel();
+                    },
+                    error: function(error) {
+                        loadingElement.classList.add('hidden');
+                        addDebugMessage(`ERRORE durante la lettura del file: ${error}`, "error");
+                        updateDebugPanel();
+                        alert('Errore durante la lettura del file: ' + error);
+                    }
+                });
+            }
+
+            function parseRules(regolaColumn = 'REGOLA') {
+                addDebugMessage("Inizio analisi delle regole...");
+                ruleFields = {};
+                
+                // Find the correct column name (case insensitive)
+                const actualColumn = headers.find(h => h.toLowerCase() === regolaColumn.toLowerCase()) || regolaColumn;
+                
+                // Process each row's REGOLA column
+                let ruleCount = 0;
+                let fieldCount = 0;
+                let patternFound = 0;
+                
+                csvData.forEach((row, index) => {
+                    const ruleText = row[actualColumn];
+                    if (!ruleText) return;
+                    
+                    ruleCount++;
+                    if (ruleCount <= 5) {
+                        addDebugMessage(`Analisi regola #${index+1}: "${ruleText}"`);
+                    }
+                    
+                    // First, handle square brackets by removing them for parsing
+                    let cleanRuleText = ruleText;
+                    const hasBrackets = ruleText.includes('[') && ruleText.includes(']');
+                    
+                    if (hasBrackets) {
+                        cleanRuleText = ruleText.replace(/[\[\]]/g, '');
+                        if (ruleCount <= 5) {
+                            addDebugMessage(`  Rimosse parentesi quadre per l'analisi: "${cleanRuleText}"`);
+                        }
+                    }
+                    
+                    // Try to find field=value patterns with flexible spacing around =
+                    // This regex looks for word characters followed by = (with optional spaces) and then captures everything until the next field= or end
+                    const fieldRegex = /(\w+)\s*=\s*([^=]+?)(?=\s+\w+\s*=|$)/g;
+                    let match;
+                    let foundInThisRule = false;
+                    
+                    while ((match = fieldRegex.exec(cleanRuleText)) !== null) {
+                        foundInThisRule = true;
+                        patternFound++;
+                        
+                        const field = match[1].trim();
+                        const valuesPart = match[2].trim();
+                        
+                        if (ruleCount <= 5) {
+                            addDebugMessage(`  Campo trovato: "${field}" con espressione: "${valuesPart}"`);
+                        }
+                        
+                        // Initialize field if not exists
+                        if (!ruleFields[field]) {
+                            ruleFields[field] = new Set();
+                            fieldCount++;
+                        }
+                        
+                        // Extract values, properly handling logical operators and parentheses
+                        extractValues(field, valuesPart, ruleCount);
+                    }
+                    
+                    if (!foundInThisRule && ruleCount <= 10) {
+                        addDebugMessage(`  Nessun pattern campo=valore trovato nella regola #${index+1}`, "warning");
+                    }
+                });
+                
+                // Convert Sets to Arrays
+                Object.keys(ruleFields).forEach(field => {
+                    ruleFields[field] = Array.from(ruleFields[field]).sort();
+                });
+                
+                addDebugMessage(`Analisi completata. Trovati ${fieldCount} campi in ${ruleCount} regole. Pattern riconosciuti: ${patternFound}`);
+                addDebugMessage("Campi e valori estratti:");
+                Object.keys(ruleFields).forEach(field => {
+                    addDebugMessage(`  ${field}: ${ruleFields[field].join(', ')}`);
+                });
+                
+                updateDebugPanel();
+            }
+            
+            function extractValues(field, valuesPart, ruleCount) {
+                // Rimuovere completamente gli operatori logici "and", "or" e "<>"
+                
+                // Prima di tutto, rimuoviamo gli operatori logici completi (parole intere)
+                let processedValues = valuesPart
+                    .replace(/\b(and|or)\b/gi, " ")
+                    .replace(/<>/g, " "); // Aggiungiamo il supporto per l'operatore "<>"
+                
+                // Gestire gli operatori logici che potrebbero essere attaccati ai valori
+                // Caso 1: "valore1and" -> "valore1"
+                processedValues = processedValues.replace(/(\w+)(and|or)\b/gi, "$1");
+                
+                // Caso 2: "andvalore1" -> "valore1"
+                processedValues = processedValues.replace(/\b(and|or)(\w+)/gi, "$2");
+                
+                // Gestire parentesi e virgole
+                const parenthesesRegex = /\(([^)]+)\)/g;
+                let parenthesesMatch;
+                
+                while ((parenthesesMatch = parenthesesRegex.exec(processedValues)) !== null) {
+                    const content = parenthesesMatch[1];
+                    // Dividere per virgole e aggiungere ogni valore
+                    const commaValues = content.split(',').map(v => v.trim());
+                    
+                    // Sostituire l'espressione tra parentesi con spazi
+                    processedValues = processedValues.replace(
+                        parenthesesMatch[0], 
+                        commaValues.join(' ')
+                    );
+                    
+                    if (ruleCount <= 5) {
+                        addDebugMessage(`    Parentesi trovate: "${parenthesesMatch[0]}" → valori: ${commaValues.join(', ')}`);
+                    }
+                }
+                
+                // Rimuovere le parentesi rimanenti
+                processedValues = processedValues.replace(/[()]/g, '');
+                
+                // Dividere per spazi e processare ogni valore
+                const values = processedValues.split(/\s+/);
+                
+                values.forEach(value => {
+                    const trimmedValue = value.trim();
+                    // Saltare valori vuoti, operatori logici e "<>"
+                    if (trimmedValue && 
+                        !/^(and|or)$/i.test(trimmedValue) && 
+                        trimmedValue !== "<>") {
+                        ruleFields[field].add(trimmedValue);
+                        
+                        if (ruleCount <= 5) {
+                            addDebugMessage(`    Valore aggiunto: "${trimmedValue}"`);
+                        }
+                    } else if (trimmedValue && 
+                              ((/^(and|or)$/i.test(trimmedValue)) || 
+                               trimmedValue === "<>")) {
+                        if (ruleCount <= 5) {
+                            addDebugMessage(`    Operatore ignorato: "${trimmedValue}"`);
+                        }
+                    }
+                });
+            }
+
+            function initializeAvailableFilters() {
+                availableFilters = {};
+                
+                // Initialize with all possible values
+                Object.keys(ruleFields).forEach(field => {
+                    availableFilters[field] = new Set(ruleFields[field]);
+                });
+                
+                addDebugMessage("Filtri disponibili inizializzati con tutti i valori possibili.");
+            }
+
+            function createFilterControls() {
+                filterControls.innerHTML = '';
+                
+                if (Object.keys(ruleFields).length === 0) {
+                    filterControls.innerHTML = '<div class="text-center text-gray-500">Nessun campo trovato nella colonna REGOLA</div>';
+                    return;
+                }
+                
+                // Create a section for each field
+                Object.keys(ruleFields).sort().forEach(field => {
+                    const fieldValues = ruleFields[field];
+                    
+                    const fieldSection = document.createElement('div');
+                    fieldSection.className = 'field-filter';
+                    fieldSection.dataset.field = field;
+                    
+                    const fieldLabel = document.createElement('h3');
+                    fieldLabel.className = 'text-sm font-medium text-gray-700 mb-2';
+                    fieldLabel.textContent = field;
+                    
+                    const valuesContainer = document.createElement('div');
+                    valuesContainer.className = 'flex flex-wrap gap-2';
+                    valuesContainer.dataset.field = field;
+                    
+                    // Create a badge for each possible value
+                    fieldValues.forEach(value => {
+                        // Non creare badge per gli operatori logici o valori vuoti
+                        if (!value || 
+                            value.toLowerCase() === 'and' || 
+                            value.toLowerCase() === 'or' ||
+                            value === "<>") {
+                            return; // Salta questo valore
+                        }
+                        
+                        const badge = document.createElement('span');
+                        badge.className = 'filter-badge px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm cursor-pointer hover:bg-gray-300';
+                        badge.textContent = value;
+                        badge.dataset.field = field;
+                        badge.dataset.value = value;
+                        
+                        // Check if this value is available in the current filter state
+                        const isAvailable = availableFilters[field] && availableFilters[field].has(value);
+                        if (!isAvailable) {
+                            badge.classList.add('disabled');
+                        } else {
+                            badge.addEventListener('click', function() {
+                                if (!this.classList.contains('disabled')) {
+                                    toggleFilter(this);
+                                }
+                            });
+                        }
+                        
+                        valuesContainer.appendChild(badge);
+                    });
+                    
+                    fieldSection.appendChild(fieldLabel);
+                    fieldSection.appendChild(valuesContainer);
+                    filterControls.appendChild(fieldSection);
+                });
+            }
+
+            function toggleFilter(badge) {
+                const field = badge.dataset.field;
+                const value = badge.dataset.value;
+                
+                // Initialize field in activeFilters if not exists
+                if (!activeFilters[field]) {
+                    activeFilters[field] = new Set();
+                }
+                
+                // Toggle selection
+                if (badge.classList.contains('selected')) {
+                    badge.classList.remove('selected');
+                    activeFilters[field].delete(value);
+                    
+                    // Remove empty field filters
+                    if (activeFilters[field].size === 0) {
+                        delete activeFilters[field];
+                    }
+                } else {
+                    badge.classList.add('selected');
+                    activeFilters[field].add(value);
+                }
+                
+                // Apply filters
+                applyFilters();
+                
+                // Update available filters based on new filtered data
+                updateAvailableFilters();
+                
+                // Update UI to reflect available filters
+                updateFilterUI();
+            }
+
+            function applyFilters() {
+                addDebugMessage("Applicazione filtri...");
+                
+                // If no active filters, show all data
+                if (Object.keys(activeFilters).length === 0) {
+                    addDebugMessage("Nessun filtro attivo, mostro tutti i dati.");
+                    filteredData = [...csvData];
+                    currentPage = 1;
+                    displayData();
+                    return;
+                }
+                
+                // Find the correct REGOLA column name (case insensitive)
+                const regolaColumn = headers.find(h => h.toLowerCase() === 'regola') || 'REGOLA';
+                
+                addDebugMessage(`Filtri attivi: ${JSON.stringify(Object.fromEntries(
+                    Object.entries(activeFilters).map(([k, v]) => [k, Array.from(v)])
+                ))}`);
+                
+                // Filter data based on active filters
+                filteredData = csvData.filter(row => {
+                    const ruleText = row[regolaColumn];
+                    if (!ruleText) return false;
+                    
+                    // Remove brackets for filtering
+                    const cleanRuleText = ruleText.replace(/[\[\]]/g, '');
+                    
+                    // Check each field filter
+                    return Object.keys(activeFilters).every(field => {
+                        const selectedValues = Array.from(activeFilters[field]);
+                        
+                        // Look for the field in the rule text with flexible spacing
+                        const fieldPattern = new RegExp(`${field}\\s*=\\s*([^=]+?)(?=\\s+\\w+\\s*=|$)`);
+                        const match = cleanRuleText.match(fieldPattern);
+                        
+                        if (!match) return false;
+                        
+                        const ruleValuesPart = match[1];
+                        
+                        // Process the rule values part to extract actual values
+                        const ruleValues = extractRuleValues(ruleValuesPart);
+                        
+                        // Check if any selected value is in the rule values
+                        return selectedValues.some(val => ruleValues.includes(val));
+                    });
+                });
+                
+                addDebugMessage(`Filtro applicato: ${filteredData.length} righe corrispondenti.`);
+                currentPage = 1;
+                displayData();
+                updateDebugPanel();
+            }
+            
+            function extractRuleValues(valuesPart) {
+                // Rimuovere completamente gli operatori logici "and", "or" e "<>"
+                
+                // Prima di tutto, rimuoviamo gli operatori logici completi (parole intere)
+                let processedValues = valuesPart
+                    .replace(/\b(and|or)\b/gi, " ")
+                    .replace(/<>/g, " "); // Aggiungiamo il supporto per l'operatore "<>"
+                
+                // Gestire gli operatori logici che potrebbero essere attaccati ai valori
+                // Caso 1: "valore1and" -> "valore1"
+                processedValues = processedValues.replace(/(\w+)(and|or)\b/gi, "$1");
+                
+                // Caso 2: "andvalore1" -> "valore1"
+                processedValues = processedValues.replace(/\b(and|or)(\w+)/gi, "$2");
+                
+                // Gestire parentesi e virgole
+                const parenthesesRegex = /\(([^)]+)\)/g;
+                let parenthesesMatch;
+                
+                while ((parenthesesMatch = parenthesesRegex.exec(processedValues)) !== null) {
+                    const content = parenthesesMatch[1];
+                    // Dividere per virgole e aggiungere ogni valore
+                    const commaValues = content.split(',').map(v => v.trim());
+                    
+                    // Sostituire l'espressione tra parentesi con spazi
+                    processedValues = processedValues.replace(
+                        parenthesesMatch[0], 
+                        commaValues.join(' ')
+                    );
+                }
+                
+                // Rimuovere le parentesi rimanenti
+                processedValues = processedValues.replace(/[()]/g, '');
+                
+                // Dividere per spazi e processare ogni valore
+                return processedValues.split(/\s+/)
+                    .map(value => value.trim())
+                    .filter(value => value !== '' && 
+                           !/^(and|or)$/i.test(value) && 
+                           value !== "<>");
+            }
+
+            function updateAvailableFilters() {
+                addDebugMessage("Aggiornamento filtri disponibili...");
+                
+                // Reset available filters
+                initializeAvailableFilters();
+                
+                // If no active filters, all filters are available
+                if (Object.keys(activeFilters).length === 0) {
+                    addDebugMessage("Nessun filtro attivo, tutti i filtri sono disponibili.");
+                    return;
+                }
+                
+                // Find the correct REGOLA column name (case insensitive)
+                const regolaColumn = headers.find(h => h.toLowerCase() === 'regola') || 'REGOLA';
+                
+                // For each field, determine which values are available based on current filtered data
+                Object.keys(ruleFields).forEach(field => {
+                    // Skip the field if it's already in active filters
+                    if (activeFilters[field]) {
+                        // For active fields, only the selected values are available
+                        const selectedValues = Array.from(activeFilters[field]);
+                        availableFilters[field] = new Set(selectedValues);
+                        return;
+                    }
+                    
+                    // For other fields, calculate available values based on filtered data
+                    const availableValues = new Set();
+                    
+                    filteredData.forEach(row => {
+                        const ruleText = row[regolaColumn];
+                        if (!ruleText) return;
+                        
+                        // Remove brackets for analysis
+                        const cleanRuleText = ruleText.replace(/[\[\]]/g, '');
+                        
+                        // Look for the field in the rule text
+                        const fieldPattern = new RegExp(`${field}\\s*=\\s*([^=]+?)(?=\\s+\\w+\\s*=|$)`);
+                        const match = cleanRuleText.match(fieldPattern);
+                        
+                        if (match) {
+                            const ruleValuesPart = match[1];
+                            const ruleValues = extractRuleValues(ruleValuesPart);
+                            
+                            // Add each value to available values
+                            ruleValues.forEach(value => {
+                                if (value && 
+                                    !/^(and|or)$/i.test(value) && 
+                                    value !== "<>") {
+                                    availableValues.add(value);
+                                }
+                            });
+                        }
+                    });
+                    
+                    availableFilters[field] = availableValues;
+                });
+                
+                addDebugMessage("Filtri disponibili aggiornati in base ai risultati filtrati.");
+                
+                // Debug output of available filters
+                Object.keys(availableFilters).forEach(field => {
+                    const values = Array.from(availableFilters[field]).join(', ');
+                    addDebugMessage(`  ${field}: ${values || 'nessun valore disponibile'}`);
+                });
+            }
+
+            function updateFilterUI() {
+                // Update the UI to reflect available filters
+                document.querySelectorAll('.filter-badge').forEach(badge => {
+                    const field = badge.dataset.field;
+                    const value = badge.dataset.value;
+                    
+                    // Check if this value is selected
+                    const isSelected = activeFilters[field] && activeFilters[field].has(value);
+                    
+                    // Check if this value is available in the current filter state
+                    const isAvailable = availableFilters[field] && availableFilters[field].has(value);
+                    
+                    // Update badge classes
+                    if (isSelected) {
+                        badge.classList.add('selected');
+                        badge.classList.remove('disabled');
+                    } else if (!isAvailable) {
+                        badge.classList.add('disabled');
+                        badge.classList.remove('selected');
+                    } else {
+                        badge.classList.remove('disabled');
+                        badge.classList.remove('selected');
+                    }
+                });
+            }
+
+            resetFiltersBtn.addEventListener('click', function() {
+                // Clear all active filters
+                activeFilters = {};
+                
+                // Reset available filters
+                initializeAvailableFilters();
+                
+                // Update UI
+                updateFilterUI();
+                
+                // Reset data
+                filteredData = [...csvData];
+                currentPage = 1;
+                displayData();
+                
+                addDebugMessage("Filtri reimpostati.");
+                updateDebugPanel();
+            });
+
+            analyzeRulesBtn.addEventListener('click', function() {
+                addDebugMessage("Rianalisi delle regole richiesta dall'utente...");
+                
+                // Find the correct REGOLA column name (case insensitive)
+                const regolaColumn = headers.find(h => h.toLowerCase() === 'regola') || 'REGOLA';
+                
+                // Re-parse rules and update filters
+                parseRules(regolaColumn);
+                
+                // Reset filters
+                activeFilters = {};
+                initializeAvailableFilters();
+                
+                // Create filter controls
+                createFilterControls();
+                
+                // Reset data
+                filteredData = [...csvData];
+                currentPage = 1;
+                displayData();
+                
+                addDebugMessage("Rianalisi completata.");
+                updateDebugPanel();
+            });
+
+            toggleDebugBtn.addEventListener('click', function() {
+                debugPanel.classList.toggle('hidden');
+                updateDebugPanel();
+            });
+
+            function displayData() {
+                // Clear previous data
+                tableHeader.innerHTML = '';
+                tableBody.innerHTML = '';
+                
+                // Add headers
+                headers.forEach(header => {
+                    const th = document.createElement('th');
+                    th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
+                    th.textContent = header;
+                    tableHeader.appendChild(th);
+                });
+                
+                // Calculate pagination
+                const startIndex = (currentPage - 1) * rowsPerPage;
+                const endIndex = startIndex + rowsPerPage;
+                const paginatedData = filteredData.slice(startIndex, endIndex);
+                
+                // Add data rows
+                paginatedData.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    
+                    headers.forEach(header => {
+                        const td = document.createElement('td');
+                        td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+                        
+                        // Mostrare il testo originale senza formattazione
+                        td.textContent = row[header] !== null ? row[header] : '';
+                        
+                        tr.appendChild(td);
+                    });
+                    
+                    tableBody.appendChild(tr);
+                });
+                
+                // Update pagination info
+                rowCount.textContent = filteredData.length;
+                pageInfo.textContent = `Pagina ${currentPage} di ${Math.ceil(filteredData.length / rowsPerPage) || 1}`;
+                prevPageBtn.disabled = currentPage === 1;
+                nextPageBtn.disabled = currentPage >= Math.ceil(filteredData.length / rowsPerPage);
+            }
+
+            function addDebugMessage(message, type = "info") {
+                const timestamp = new Date().toLocaleTimeString();
+                let prefix = "";
+                
+                switch(type) {
+                    case "error":
+                        prefix = "🔴 ";
+                        break;
+                    case "warning":
+                        prefix = "🟠 ";
+                        break;
+                    case "success":
+                        prefix = "🟢 ";
+                        break;
+                    default:
+                        prefix = "🔵 ";
+                }
+                
+                debugLog.push(`${prefix}[${timestamp}] ${message}`);
+                
+                // Keep log size reasonable
+                if (debugLog.length > 100) {
+                    debugLog.shift();
+                }
+            }
+
+            function updateDebugPanel() {
+                debugInfo.innerHTML = debugLog.join('<br>');
+                // Auto-scroll to bottom
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+
+            prevPageBtn.addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayData();
+                }
+            });
+
+            nextPageBtn.addEventListener('click', function() {
+                if (currentPage < Math.ceil(filteredData.length / rowsPerPage)) {
+                    currentPage++;
+                    displayData();
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979463d0e33003a3',t:'MTc1Njg5MzUxOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
