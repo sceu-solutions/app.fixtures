@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graphic Configurator</title>
+
+  <!--
+    =============================================================
+    Blocchi principali:
+      1) Base & Layout
+      2) Viewer (immagine + overlay responsivo)
+      3) Search input + icona clear
+      4) Drag options & option cards
+      5) Bottoni / Actions
+      6) Form / Tabs / Details / Info / Footer
+      7) Grid overlay (slot), Dropped button, Print
+    =============================================================
+  -->
+  <style>
+    /* ==========================
+       1) Base & Layout
+       ========================== */
+    * { box-sizing: border-box; font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 300; }
+    :root { --header-h: 70px; }
+
+    body {
+      margin: 0; color: #333; background: #f9f9f9;
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: #fff;
+      height: var(--header-h); padding: 0 20px; border-bottom: 1px solid #ccc;
+      display: flex; align-items: center;
+    }
+    header h1 { margin: 0; font-size: 24px; font-weight: 400; color: #dc0000; }
+    header img { height: calc(var(--header-h) - 2px); margin-right: 15px; }
+
+    .container { display: flex; flex: 1; margin-top: var(--header-h); }
+
+    .left-panel {
+      flex: 0 0 35%; background: #fff; padding: 0 20px 20px; border-right: 1px solid #ccc;
+      box-shadow: 2px 0 5px rgba(0,0,0,.1); display: flex; flex-direction: column; gap: 20px;
+      overflow-y: auto; height: calc(100vh - var(--header-h)); position: sticky; top: var(--header-h);
+    }
+
+    .right-panel {
+      flex: 1; background: #f0f0f0; padding: 20px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      height: calc(100vh - var(--header-h));
+    }
+
+    /* Responsive header più compatto */
+    @media (max-width: 600px) {
+      :root { --header-h: 56px; }
+      header img { height: calc(var(--header-h) - 14px); }
+    }
+
+    /* ==========================
+       2) Viewer (immagine + overlay)
+       ========================== */
+    #viewer { position: relative; overflow: visible; }
+
+    .image-viewer {
+      width: 100%; height: 100%; background: #fff;
+      display: flex; justify-content: center; align-items: center; font-size: 16px;
+      position: relative; overflow: hidden;
+    }
+    .image-viewer p { margin: 0; font-size: 16px; color: #666; }
+    .image-viewer img {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      height: 100%; width: auto; object-fit: contain;
+    }
+
+    /* ==========================
+       3) Search input + icona clear (centrata via CSS Grid)
+       ========================== */
+    .search-input-wrap { display: grid; margin-bottom: 10px; position: relative; }
+    .search-input-wrap .image-search { grid-area: 1 / 1; padding-right: 32px; }
+
+    .clear-btn { grid-area: 1 / 1; justify-self: end; align-self: center; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #888; border-radius: 6px; cursor: pointer; }
+    .clear-btn:hover { color: #333; background: rgba(0,0,0,0.05); }
+    .clear-btn:focus-visible { outline: 2px solid #2684ff; outline-offset: 2px; }
+    .clear-btn.hidden { display: none; }
+    .clear-btn .icon-x { width: 16px; height: 16px; pointer-events: none; }
+
+    /* ==========================
+       4) Drag options & option cards
+       ========================== */
+    .drag-options { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .option { display: flex; flex-direction: column; align-items: center; width: 70px; }
+    .option img {
+      width: 60px; height: 60px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px; cursor: grab;
+    }
+    .option img:active { cursor: grabbing; }
+    .option span { font-size: 14px; font-weight: 400; margin-top: 4px; color: #333; }
+
+    /* ==========================
+       5) Bottoni / Actions
+       ========================== */
+    .actions-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 20px; margin-top: auto; }
+
+    .export-button {
+      background: #dc0000; color: #fff; border: none; border-radius: 4px;
+      font-size: 14px; cursor: pointer; padding: 10px 20px; align-self: flex-end; margin-top: auto;
+    }
+    .export-button:hover { background-color: #cc0010; }
+
+    /* forza Export PDF a stare su una nuova riga */
+    .export-row { flex-basis: 100%; }
+
+    /* ==========================
+       6) Form / Tabs / Details / Info / Footer
+       ========================== */
+    .form-group { margin-bottom: 15px; padding-left: 10px; }
+    label { display: block; margin-bottom: 5px; }
+    input[type="text"], select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+
+    .tab-nav { margin: 0 0 10px 0; position: sticky; top: 0; z-index: 10; }
+    .tab-nav ul {
+      display: flex; list-style: none; padding: 0; margin: 0; background: #f0f0f0; border-radius: 8px 8px 0 0;
+    }
+    .tab-nav li { flex: 1; }
+    .tab-nav a {
+      display: block; text-align: center; padding: 12px; text-decoration: none; color: #333; font-weight: bold;
+      transition: background-color .3s ease, color .3s ease;
+    }
+    .tab-nav a:hover, .tab-nav a.active { background: #e0e0e0; color: #000; border-bottom: 3px solid #e60012; border-radius: 0; }
+
+    details { background: #fdfdfd; border: 1px solid #ddd; border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; }
+    details summary { font-weight: 600; font-size: 16px; cursor: pointer; color: #222; margin-bottom: 10px; }
+
+    #menu-content { opacity: 0; transition: opacity .4s ease-in-out; }
+    #menu-content.visible { opacity: 1; }
+    #menu-content details:first-of-type { margin-top: 0; }
+    section#general-info { margin-top: 0; border-top: none; padding-top: 0; }
+
+    .combined-section { display: flex; flex-direction: column; gap: 0; }
+    .subsection { border-top: 1px solid #ccc; padding-top: 10px; margin-top: 10px; }
+    .subsection:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+
+	.info-bar{
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+	  gap: .5rem;
+
+	  background: rgba(255,255,255,.85);
+	  -webkit-backdrop-filter: saturate(120%) blur(2px);
+	  backdrop-filter: saturate(120%) blur(2px);
+
+	  border: 1px solid #e9e9e9;
+	  border-radius: 10px;
+
+	  padding: 6px 12px;
+	  width: min(100%, 720px);
+	  margin: 4px auto 12px;
+
+	  font-weight: 500;
+	  font-size: 14px;
+	  color: #2a2a2a;
+
+	  box-shadow: 0 1px 2px rgba(0,0,0,.03);
+	}
+
+	/* quando non c'è testo, non mostrare la barra */
+	.info-bar:empty { display: none; }
+
+	/* transizioni sottili (rispettano le preferenze di motion) */
+	@media (prefers-reduced-motion: no-preference){
+	  .info-bar{
+		transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+	  }
+	  .info-bar:hover{
+		box-shadow: 0 4px 16px rgba(0,0,0,.04);
+		border-color: #e3e3e3;
+	  }
+	}
+
+    footer { background: #fff; border-top: 1px solid #ccc; text-align: center; padding: 10px; font-size: 12px; color: #666; }
+
+    /* ==========================
+       7) Grid overlay, Dropped button, Print
+       ========================== */
+    .overlay-root { position: absolute; top: 0; left: 50%; transform: translateX(-50%) scale(1); transform-origin: top center; pointer-events: none; z-index: 2; }
+
+    grid-overlay { position: absolute; display: grid; pointer-events: none; z-index: 1; }
+    .grid-overlay .slot { border: 1px dashed #999; background: rgba(255,255,255,.3); pointer-events: auto; position: relative; overflow: hidden; }
+    .grid-overlay .slot img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 100%; max-height: 100%; object-fit: contain; }
+	
+	/* Nasconde bordo/sfondo quando lo slot contiene un componente  */
+	.grid-overlay .slot:has(.dropped-button),
+	.overlay-root > .slot:has(.dropped-button),
+	/* Fallback cross-browser via classe .filled (vedi JS sotto) */
+	.grid-overlay .slot.filled,
+	.overlay-root > .slot.filled {
+	  border-color: transparent;
+	  background: transparent;
+}
+	
+	.overlay-root > .slot {
+	  border: 1px dashed #999;
+	  background: rgba(255,255,255,.3);
+	  pointer-events: auto;
+	  position: relative;
+	  overflow: hidden;
+	}
+	.overlay-root > .slot img {
+	  position: absolute;
+	  top: 50%; left: 50%;
+	  transform: translate(-50%, -50%);
+	  max-width: 100%;
+	  max-height: 100%;
+	  object-fit: contain;
+	}
+
+    .dropped-button { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .dropped-button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .button-input {font-family: "frutiger Next LT W1G Light"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: none; background: transparent; text-align: center; font-weight: bold; outline: none; pointer-events: auto; caret-color: currentColor; white-space: nowrap; box-sizing: content-box; width: auto; overflow: visible; }
+
+/* nascosto a schermo */
+#print-sheet { display: none; }
+
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+
+  /* Mostra SOLO il foglio di export */
+  body.printing > :not(#print-sheet) { display: none !important; }
+  
+body.printing #print-sheet {
+  display: block !important;
+  width: calc(210mm - 20mm);     /* A4 - 2*10mm */
+  max-height: calc(297mm - 20mm);
+  overflow: hidden;
+  margin: 0;
+  position: relative;
+}
+
+/* 1B) VERO contenitore a griglia: è quello che scaleremo */
+body.printing #print-inner{
+  display: grid;
+  grid-template-rows: 12mm 1fr;
+  grid-template-columns: 95mm 1fr;  /* SX immagine | DX card */
+  grid-template-areas:
+    "header header"
+    "left   right";
+  column-gap: 8mm;
+  row-gap: 6mm;
+  align-items: start;
+  transform-origin: top left;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  page-break-inside: avoid;
+}
+
+/* header / colonne restano uguali ma puntano sempre agli stessi id */
+body.printing #print-header { grid-area: header; position: relative; height: 12mm; border-top: 0.3mm solid #dcdcdc; }
+body.printing #print-header .print-logo { position: absolute; top: 1.5mm; right: 0; height: 9mm; width: auto; }
+body.printing #print-left  { grid-area: left;  display: flex; align-items: flex-start; }
+body.printing #print-right { grid-area: right; display: block; }
+
+  /* Header: riga orizzontale + logo in alto a destra */
+  body.printing #print-header {
+    grid-area: header;
+    position: relative;
+    height: 12mm;
+    border-top: 0.3mm solid #dcdcdc;
+  }
+
+  /* Colonne */
+  body.printing #print-left  { grid-area: left;  display: flex; align-items: flex-start; }
+
+  /* Viewer pulito (niente bordo tratteggiato) + overlay sopra l’immagine */
+  body.printing #print-sheet .image-viewer { position: relative; border: none; background:#fff; }
+  body.printing #print-sheet .overlay-root { position: absolute !important; z-index: 2; }
+  body.printing #print-sheet .image-viewer img { z-index: 1; }
+
+  /* Mantieni ingombro delle celle ma nascondi quelle vuote */
+  body.printing #print-sheet .print-keep-space {
+    visibility: hidden !important; border-color: transparent !important; background: transparent !important;
+  }
+
+  /* Card info stile “bollone” come nello sketch */
+  body.printing #print-right .print-card{
+    background:#fff;
+    border: 0.4mm solid #e7e7e7;
+    border-radius: 12px;
+    padding: 7mm;
+    box-shadow: 0 2mm 6mm rgba(0,0,0,.06);
+  }
+  body.printing #print-right .print-title{
+    margin: 0 0 5mm 0;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 700;
+  }
+  body.printing #print-right .kv{
+    display:grid;
+    grid-template-columns: auto 1fr;
+    gap: 3mm 6mm;
+    font-size: 12.5px;
+  }
+  body.printing #print-right .kv .k{ color:#666; font-weight:600; }
+  body.printing #print-right .kv .v{ color:#111; font-weight:700; }
+  
+    body.printing .print-button-text{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    font-weight:700;
+    white-space:nowrap;
+    border:0; padding:0; margin:0;
+    background:transparent;
+    /* eredita dimensione/colore dal JS */
+  }
+  
+  body.printing #print-sheet .image-viewer > img {
+    z-index: 1 !important;
+  }
+
+  /* 1B) Testo dei bottoni sempre sopra alle immagini dei bottoni */
+  body.printing #print-sheet .print-button-text{
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;               /* <<< sopra alle img dei bottoni */
+    font-weight: 700;
+    white-space: nowrap;
+    border: 0; padding: 0; margin: 0;
+    background: transparent;
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  /* (facoltativo, ma utile) garantisci che le img dei bottoni non salgano sopra al testo */
+  body.printing #print-sheet .dropped-button img{
+    z-index: 1;
+    position: absolute; /* normalmente già così */
+  }
+}
+
+    /* Overlay root: scala insieme all'immagine */
+    .overlay-root { position: absolute; top: 0; left: 50%; transform: translateX(-50%) scale(1); transform-origin: top center; pointer-events: none; z-index: 2; }
+    .overlay-root .slot { pointer-events: auto; }
+      /* === Actions toolbar: 3 buttons top, Export full-width below === */
+    .actions-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin-top: auto; }
+    .actions-row .export-button{ --btn-red:#d40000; --btn-red-hover:#c20000; --btn-red-border:#a80000; display:flex; align-items:center; justify-content:center; gap:8px; background:var(--btn-red); color:#fff; border:1px solid var(--btn-red-border); border-radius:6px; height:40px; padding:0 14px; font-size:13px; font-weight:600; letter-spacing:.3px; text-transform:uppercase; cursor:pointer; }
+    .actions-row .export-button:hover { background: var(--btn-red-hover); }
+    .actions-row .export-button svg{ width:20px; height:20px; margin-right:6px; vertical-align:-3px; flex:0 0 auto; }
+    /* tre bottoni in alto, uguale larghezza, separatore visivo tra loro */
+    .actions-row .export-button:not(.export-row){ flex: 1 1 0%; min-width: 0; }
+ 
+    /* Export PDF a tutta larghezza, distanziato sotto */
+    .actions-row .export-row { flex-basis: 100%; margin-top: 8px; justify-content: center; }
+ 
+  
+/* === Info-bar inside the viewer (anchored to the right of the image) === */
+#viewer { position: relative; }
+#viewer .info-bar{ position:absolute; top: 16px; right:8px; width:260px; max-height:calc(100% - 16px); overflow:auto;
+  margin:0; display:grid; gap:6px; background: transparent;
+   
+  padding: 0; border-radius:12px; box-shadow: none;
+  border: none;
+}
+.info-kv{ display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:baseline; }
+.info-kv .k{ color:#555; font-weight:500; font-size:13px; }
+.info-kv .v{ font-weight:600; color:#1f1f1f; font-size:13px; }
+.badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;  }
+.badge.ok{}
+.badge.no{}
+
+/* === Responsive fallback: hide info-bar on narrow screens === */
+@media (max-width: 1024px){
+  #viewer .info-bar{
+    display: none !important;
+  }
+}
+</style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <img src="images/schindler-logo.svg" alt="Schindler Logo" />
+    <h1>Graphic Configurator</h1>
+  </header>
+
+  <!-- Layout principale -->
+  <div class="container">
+    <!-- Pannello sinistro: tabs + contenuti -->
+    <div class="left-panel">
+      <nav class="tab-nav">
+        <ul>
+          <li><a href="#" id="btn-COP" onclick="return switchMenu('COP')">COP</a></li>
+          <li><a href="#" id="btn-LOP" onclick="return switchMenu('LOP')">LOP</a></li>
+          <li><a href="#" id="btn-LIP" onclick="return switchMenu('LIP')">LIP</a></li>
+        </ul>
+      </nav>
+
+      <div id="menu-content" class="visible"></div>
+
+      <!-- Actions (Save / Upload / Reset + Export) -->
+      <div class="actions-row">
+        <button class="export-button" onclick="saveConfiguration()" aria-label="Save configuration">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path>
+            <path d="M7 21v-8h10v8"></path>
+            <path d="M7 3v5h8"></path>
+          </svg>
+          SAVE
+        </button>
+        <button class="export-button" onclick="promptUpload()" aria-label="Upload configuration">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <path d="M7 10l5-5 5 5"></path>
+            <path d="M12 15V3"></path>
+          </svg>
+          UPLOAD
+        </button>
+        <button class="export-button reset-button" onclick="confirmReset()" aria-label="Reset">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 3-6"></path>
+            <polyline points="3 3 3 9 9 9"></polyline>
+          </svg>
+          RESET
+        </button>
+        <button class="export-button export-row" onclick="exportPDF()" aria-label="Export PDF">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+            <path d="M14 3v5h5"></path>
+            <rect x="7" y="13" width="10" height="6" rx="1"></rect>
+            <text x="12" y="17.5" text-anchor="middle" font-size="4" font-family="Arial, sans-serif" stroke="none" fill="currentColor">PDF</text>
+          </svg>
+          EXPORT PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- input nascosto per Upload JSON -->
+    <input type="file" id="configFileInput" accept="application/json" style="display:none" />
+
+    <!-- Pannello destro: info + viewer -->
+    <div class="right-panel">
+      <div id="viewer" class="image-viewer">
+  <aside id="info-bar" class="info-bar"></aside>
+        <p>Seleziona un materiale per visualizzare l'immagine</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    © Schindler 2025 <a href="https://www.schindler.com/privacy-policy.html">Privacy Policy</a>
+  </footer>
+
+  <!--
+    =============================================================
+    Ordine:
+      A) Drag & Drop
+      B) Ricerca Components (filter + clear icon)
+      C) Layout overlay grid (updateLayoutGrid + scaler responsivo)
+      D) Immagine materiale (updateMaterialImage)
+      E) Listener di sezione (attach*)
+      F) Menus (template HTML)
+      G) Switch menu con conferma + reset
+      H) Reset helpers
+      I) Bootstrapping (onload + resize)
+    =============================================================
+  -->
+  <script>
+    /* ==========================
+       A) Drag & Drop
+       ========================== */
+    function handleDragStart(evt) {
+      const option = evt.target.closest('.option');
+      if (!option) return;
+      const typeName = option.querySelector('span').textContent.trim();
+      evt.dataTransfer.setData('text/html', evt.target.outerHTML);
+      evt.dataTransfer.setData('buttonType', typeName);
+    }
+
+    function handleDrop(evt) {
+      evt.preventDefault();
+      const html = evt.dataTransfer.getData('text/html');
+      const typeName = evt.dataTransfer.getData('buttonType') || '';
+      const slot = evt.currentTarget;
+
+      // Limita a un solo pulsante MAIN complessivo
+      if (/main/i.test(typeName)) {
+        const mainCount = Array.from(document.querySelectorAll('.dropped-button'))
+          .filter(w => w.dataset.typeName && /main/i.test(w.dataset.typeName))
+          .length;
+        if (mainCount >= 1) { alert('Errore: non puoi aggiungere più di un bottone MAIN.'); return; }
+      }
+
+      // Pulisci lo slot
+      slot.innerHTML = '';
+
+      // Ricrea l'<img> dal markup
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      const img = tpl.content.firstChild;
+
+      // Wrapper assoluto con data-type-name
+      const wrapper = document.createElement('div');
+      wrapper.className = 'dropped-button';
+      wrapper.dataset.typeName = typeName;
+      wrapper.appendChild(img);
+
+      // Bottoni che abilitano il campo testo (cifre/lettere)
+      const allowed = [
+        'Main Floor Button sandblast',
+		'Main Floor Button sandblast with braille',
+        'Main Floor Button black',
+        'Main Floor Button black with braille',
+        'Floor Button sandblast',
+		'Floor Button sandblast with braille',
+        'Floor Button black',
+		'Floor Button black with braille'
+      ];
+      if (allowed.includes(typeName)) {
+        const input = document.createElement('input');
+        input.type = 'text'; input.maxLength = 2; input.className = 'button-input';
+        input.style.color = typeName.toLowerCase().includes('black') ? 'white' : 'black';
+        input.setAttribute('size', '1'); input.style.fontSize = '0.8rem';
+        input.addEventListener('input', e => {
+          const len = Math.max(e.target.value.length, 1);
+          e.target.setAttribute('size', String(len));
+          e.target.style.fontSize = '0.8rem';
+        });
+        wrapper.appendChild(input);
+      }
+
+      slot.appendChild(wrapper);
+	  slot.classList.add('filled');
+    }
+
+    /* ==========================
+       B) Ricerca Components (filter + clear icon)
+       ========================== */
+    function filterImages(inputEl) {
+      const term = (inputEl.value || '').trim().toLowerCase();
+      const group = inputEl.closest('.form-group');
+      if (!group) return;
+      const options = group.querySelectorAll('.drag-options .option');
+      options.forEach(opt => {
+        const label = (opt.querySelector('span')?.textContent || '').toLowerCase();
+        const src   = (opt.querySelector('img')?.getAttribute('src') || '').toLowerCase();
+        const match = !term || label.includes(term) || src.includes(term);
+        opt.style.display = match ? '' : 'none';
+      });
+    }
+
+    function wireSearchClearButtons() {
+      document.querySelectorAll('.form-group .image-search').forEach(inp => {
+        if (inp.dataset.clearBound === '1') return;
+
+        // Wrap input se manca
+        if (!inp.parentElement.classList.contains('search-input-wrap')) {
+          const wrap = document.createElement('div');
+          wrap.className = 'search-input-wrap';
+          inp.parentElement.insertBefore(wrap, inp);
+          wrap.appendChild(inp);
+        }
+
+        // Crea bottone icona se assente
+        let btn = inp.parentElement.querySelector('.clear-btn');
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'clear-btn hidden';
+          btn.setAttribute('aria-label', 'Cancella ricerca');
+          btn.setAttribute('title', 'Cancella');
+          btn.innerHTML = `
+            <svg class="icon-x" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>`;
+          inp.parentElement.appendChild(btn);
+        }
+
+        const toggleBtn = () => { btn.classList.toggle('hidden', !(inp.value && inp.value.trim())); };
+        inp.addEventListener('input', toggleBtn);
+        btn.addEventListener('click', () => { inp.value = ''; toggleBtn(); if (typeof filterImages === 'function') filterImages(inp); });
+        toggleBtn();
+        inp.dataset.clearBound = '1';
+      });
+    }
+
+    /* ==========================
+       C) Layout overlay grid (update + scaler responsivo)
+       ========================== */
+    let OVERLAY_BASE_HEIGHT = null; // base di scala globale (persistente tra rebuild)
+    function scaleOverlayResponsive() {
+      const viewer = document.getElementById('viewer');
+      const img   = viewer && viewer.querySelector('img');
+      const root  = viewer && viewer.querySelector('.overlay-root');
+      if (!img || !root) return;
+      const rect = img.getBoundingClientRect();
+      if (!rect || !rect.height) return;
+      if (OVERLAY_BASE_HEIGHT == null || !isFinite(OVERLAY_BASE_HEIGHT) || OVERLAY_BASE_HEIGHT <= 0) {
+        OVERLAY_BASE_HEIGHT = rect.height; // fissa la base alla prima misurazione utile
+      }
+      const s = rect.height / OVERLAY_BASE_HEIGHT;
+      root.style.transform = `translateX(-50%) scale(${s})`;
+    }
+
+	function rebaseOverlayToImage() {
+	  try {
+		// prova a leggere il designHeight del layout corrente
+		const sel = document.getElementById('layoutCOP');
+		const schema = sel && LAYOUTS[sel.value];
+		// se lo schema non c’è, usa un fallback sicuro
+		OVERLAY_BASE_HEIGHT = (schema && Number(schema.designHeight)) || 1000;
+	  } catch (_) {
+		OVERLAY_BASE_HEIGHT = 1000;
+	  }
+	  // applica subito la scala corretta rispetto all'immagine corrente
+	  requestAnimationFrame(scaleOverlayResponsive);
+	}
+
+    /* ==========================
+       D) Data‑driven layouts (schema + builder)
+       ========================== */
+    const LAYOUTS = {
+      "Layout 1x7 (EN81-70)": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 7, cols: 1, cell: 31, gap: 10, vgap: 10, top: 532, left: -13 },
+          { kind: 'grid', rows: 2, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+      "Layout 2x7 (EN81-70)": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 7, cols: 2, cell: 31, gap: 10, vgap: 10, top: 532, left: -33 },
+          { kind: 'grid', rows: 2, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+      "Layout 3x7 (EN81-70)": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 7, cols: 3, cell: 31, gap: 10, vgap: 10, top: 532, left: -54 },
+          { kind: 'grid', rows: 2, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+      "Layout 1x9": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 9, cols: 1, cell: 31, gap: 10, vgap: 10, top: 450, left: -13 },
+          { kind: 'grid', rows: 2, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+      "Layout 2x9": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 9, cols: 2, cell: 31, gap: 10, vgap: 10, top: 450, left: -33 },
+          { kind: 'grid', rows: 2, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+      "Layout 3x9": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 9, cols: 3, cell: 31, gap: 10, vgap: 10, top: 450, left: -54 },
+          { kind: 'grid', rows: 2, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+	  "Layout Selective (EN81-70)": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 6, cols: 2, cell: 31, gap: 51, vgap: 10, top: 563, left: -54 },
+          { kind: 'grid', rows: 3, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      },
+	  "Layout Selective": {
+        designHeight: 1000,
+        elements: [
+          { kind: 'rect', width: 170, height: 180, top: 61, left: -85 },
+          { kind: 'grid', rows: 8, cols: 2, cell: 31, gap: 51, vgap: 10, top: 481, left: -54 },
+          { kind: 'grid', rows: 3, cols: 3, cell: 31, gap: 10, vgap: 10,           left: -54 }
+        ]
+      }	  
+    };
+
+    function makeSlot(styleObj = {}) {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      Object.assign(slot.style, styleObj);
+      slot.addEventListener('dragover', e => e.preventDefault());
+      slot.addEventListener('drop', handleDrop);
+      slot.addEventListener('dblclick', e => {
+	    e.currentTarget.innerHTML = '';
+	    e.currentTarget.classList.remove('filled');
+	  });
+      return slot;
+    }
+
+    function buildOverlayFromSchema(schema) {
+      const viewer = document.getElementById('viewer');
+      const img = viewer.querySelector('img');
+      if (!viewer || !img || !schema) return;
+
+      // reset (mantieni immagine)
+      viewer.innerHTML = '';
+      viewer.appendChild(img);
+
+      // overlay root
+      let root = viewer.querySelector('.overlay-root');
+      if (!root) { root = document.createElement('div'); root.className = 'overlay-root'; }
+      root.innerHTML = '';
+      viewer.appendChild(root);
+
+      let lastGridBottom = null; // per posizionare automaticamente le griglie successive
+
+      schema.elements.forEach(el => {
+        if (el.kind === 'rect') {
+          const slot = makeSlot({ position: 'absolute', width: `${el.width}px`, height: `${el.height}px`, top: `${el.top}px`, left: el.centerX ? '50%' : (el.left != null ? `${el.left}px` : '0'), transform: el.centerX ? 'translateX(-50%)' : 'none', zIndex: '10' });
+          root.appendChild(slot);
+        } else if (el.kind === 'grid') {
+          const grid = document.createElement('div');
+          grid.className = 'grid-overlay';
+          let topPx = el.top;
+          const hgap = el.hgap ?? el.gap ?? 0;   // gap orizzontale
+		  const vgap = el.vgap ?? 0;             // gap verticale (default 0)
+		  if (topPx == null && lastGridBottom != null) topPx = lastGridBottom + vgap * 2;
+          Object.assign(grid.style, { position: 'absolute', display: 'grid', columnGap: `${hgap}px`, rowGap: `${vgap}px` , top: `${topPx}px`, left: el.centerX ? '50%' : (el.left != null ? `${el.left}px` : '0'), transform: el.centerX ? 'translateX(-50%)' : 'none', gridTemplateColumns: `repeat(${el.cols}, ${el.cell}px)`, gridTemplateRows: `repeat(${el.rows}, ${el.cell}px)` });
+          const totalHeight = el.rows * el.cell + (el.rows - 1) * vgap;
+          lastGridBottom = topPx + totalHeight;
+          for (let i = 0; i < el.rows * el.cols; i++) grid.appendChild(makeSlot());
+          root.appendChild(grid);
+        }
+      });
+
+      // scala dopo assestamento layout
+      requestAnimationFrame(scaleOverlayResponsive);
+    }
+
+	function updateLayoutGrid(layoutName) {
+	  const schema = LAYOUTS[layoutName];
+	  if (!schema) return;
+	  buildOverlayFromSchema(schema);
+	  // NEW: riallinea la base alla height di progetto del layout scelto
+	  OVERLAY_BASE_HEIGHT = Number(schema.designHeight) || 1000;
+	  requestAnimationFrame(scaleOverlayResponsive);
+	}
+	
+    /* ==========================
+       D) Immagine materiale (mantiene overlay)
+       ========================== */
+    function updateMaterialImage() {
+      const sel = document.getElementById('materialFinishing');
+      if (!sel) return;
+
+      const viewer = document.getElementById('viewer');
+      const rootKeep = viewer.querySelector('.overlay-root');
+
+      // Reset viewer
+      viewer.innerHTML = '';
+
+      // (Re)crea immagine principale
+      const img = document.createElement('img');
+      img.setAttribute('draggable', false);
+      viewer.appendChild(img);
+
+      // Riattacca overlay root (se presente)
+      if (rootKeep) viewer.appendChild(rootKeep);
+
+      // Mappa finiture → immagini
+      const map = {
+        BRUSHED: 'images/COP_GS_100_short_base.png',
+        BLACK:   'images/COP_GS_100_short_base_Black.png',
+        GOLD:    'images/COP_GS_100_short_base_Gold.png',
+        LOP1:    'images/LOP1.jpg', LOP2: 'images/LOP2.jpg',
+        LIP1:    'images/LIP1.jpg', LIP2: 'images/LIP2.jpg'
+      };
+
+      img.src = map[sel.value] || '';
+      img.alt = sel.value || '';
+
+      // Ricalcola overlay al load dell'immagine
+	  if (img.complete) rebaseOverlayToImage();
+	  else img.addEventListener('load', rebaseOverlayToImage, { once: true });
+    }
+
+    /* ==========================
+       E) Listener di sezione (General / Material / Layout)
+       ========================== */
+    function attachLayoutListener() {
+      const sel = document.getElementById('layoutCOP');
+      if (sel) sel.addEventListener('change', () => updateLayoutGrid(sel.value));
+    }
+
+    function attachMaterialListener() {
+      const sel = document.getElementById('materialFinishing');
+      if (sel) sel.addEventListener('change', updateMaterialImage);
+    }
+
+    function attachGeneralInfoListener() {
+      const cm = document.getElementById('commissionNumber');
+      const fl = document.getElementById('fixtureLine');
+      const bar = document.getElementById('info-bar');
+      function render() {
+        const c = cm ? cm.value.trim() : '';
+        const f = fl ? fl.value : '';
+        bar.textContent = c || f ? `Commission: ${c || '-'} | Fixture: ${f || '-'}` : '';
+      }
+      if (cm) cm.addEventListener('input', render);
+      if (fl) fl.addEventListener('change', render);
+      render();
+    }
+
+    /* ==========================
+       F) Menus (template HTML per i tre tab)
+       ========================== */
+    const menus = {
+      COP: `
+<details><summary>Layout and Finishes</summary>
+  <div class="form-group"><label>Material Finishing</label>
+    <select id="materialFinishing">
+      <option value="" disabled selected>-- Seleziona un'opzione --</option>
+      <option>BRUSHED</option>
+      <option>BLACK</option>
+      <option>GOLD</option>
+    </select>
+  </div>
+  <div class="form-group"><label>Layout COP</label>
+    <select id="layoutCOP">
+      <option value="" disabled selected>-- Seleziona un'opzione --</option>
+      <option>Layout 1x7 (EN81-70)</option>
+      <option>Layout 2x7 (EN81-70)</option>
+      <option>Layout 3x7 (EN81-70)</option>
+      <option>Layout 1x9</option>
+      <option>Layout 2x9</option>
+      <option>Layout 3x9</option>
+	  <option>Layout Selective (EN81-70)</option>
+	  <option>Layout Selective</option>
+    </select>
+  </div>
+</details>
+<details><summary>Components</summary>
+  <details><summary>Button Type</summary>
+    <div class="form-group">
+      <input type="text" class="image-search" placeholder="Search..." oninput="filterImages(this)">
+      <div class="drag-options">
+        <div class="option"><img src="images/Main_Floor_Button.png" draggable="true" ondragstart="handleDragStart(event)"><span>Main Floor Button sandblast</span></div>		
+        <div class="option"><img src="images/Floor_button.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Floor Button sandblast</span></div>		
+        <div class="option"><img src="images/Alarm.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button sandblast</span></div>
+        <div class="option"><img src="images/Alarm_AUS.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button sandblast (AUS)</span></div>		
+        <div class="option"><img src="images/DTO.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTO Button sandblast</span></div>		
+        <div class="option"><img src="images/DTOR.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTOR Button sandblast</span></div>		
+        <div class="option"><img src="images/DTS.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTS Button sandblast</span></div>
+        <div class="option"><img src="images/DTSR.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTSR Button sandblast</span></div>		
+        <div class="option"><img src="images/Main_Floor_Button_BEN.png" draggable="true" ondragstart="handleDragStart(event)"><span>Main Floor Button sandblast with braille</span></div>
+        <div class="option"><img src="images/Floor_button_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Floor Button sandblast with braille</span></div>		
+        <div class="option"><img src="images/Alarm_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button sandblast with braille</span></div>
+        <div class="option"><img src="images/Alarm_BEN_AUS.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button sandblast with braille (AUS)</span></div>		
+        <div class="option"><img src="images/DTO_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTO Button sandblast with braille</span></div>
+        <div class="option"><img src="images/DTOR_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTOR Button sandblast with braille</span></div>			
+        <div class="option"><img src="images/DTS_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTS Button sandblast with braille</span></div>
+        <div class="option"><img src="images/DTSR_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTSR Button sandblast with braille</span></div>		
+		<div class="option"><img src="images/Main_Floor_Button_BKHL.png" draggable="true" ondragstart="handleDragStart(event)"><span>Main Floor Button black</span></div>	
+        <div class="option"><img src="images/Floor_Button_BKHL.png" draggable="true" ondragstart="handleDragStart(event)"><span>Floor Button black</span></div>	
+        <div class="option"><img src="images/Alarm_BKHL.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button black</span></div>
+        <div class="option"><img src="images/Alarm_BKHL_AUS.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button black (AUS)</span></div>		
+        <div class="option"><img src="images/DTO_BKHL.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTO Button black</span></div>
+        <div class="option"><img src="images/DTOR_BKHL.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTOR Button black</span></div>		
+        <div class="option"><img src="images/DTS_BKHL.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTS Button black</span></div>
+        <div class="option"><img src="images/DTSR_BKHL.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTSR Button black</span></div>		
+        <div class="option"><img src="images/Main_Floor_Button_BKHL_BEN.png" draggable="true" ondragstart="handleDragStart(event)"><span>Main Floor Button black with braille</span></div>
+        <div class="option"><img src="images/Floor_Button_BKHL_BEN.png" draggable="true" ondragstart="handleDragStart(event)"><span>Floor Button black with braille</span></div>
+        <div class="option"><img src="images/Alarm_BKHL_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button black with braille</span></div>
+        <div class="option"><img src="images/Alarm_BKHL_BEN_AUS.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>Alarm Button black with braille (AUS)</span></div>		
+        <div class="option"><img src="images/DTO_BKHL_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTO Button black with braille</span></div>	
+        <div class="option"><img src="images/DTOR_BKHL_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTOR Button black with braille</span></div>		
+        <div class="option"><img src="images/DTS_BKHL_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTS Button black with braille</span></div>
+        <div class="option"><img src="images/DTSR_BKHL_BEN.PNG" draggable="true" ondragstart="handleDragStart(event)"><span>DTSR Button black with braille</span></div>		
+      </div>
+    </div>
+  </details>
+  <details><summary>Glass Type</summary>
+    <div class="form-group">
+      <input type="text" class="image-search" placeholder="Search..." oninput="filterImages(this)">
+      <div class="drag-options">
+        <div class="option"><img src="images/Glass_short_White.png" draggable="true" ondragstart="handleDragStart(event)"><span>White Glass</span></div>
+		<div class="option"><img src="images/Glass_short_White_NOlogo.png" draggable="true" ondragstart="handleDragStart(event)"><span>White Glass without Logo</span></div>
+        <div class="option"><img src="images/Glass_short_Black.png" draggable="true" ondragstart="handleDragStart(event)"><span>Black Glass</span></div>
+        <div class="option"><img src="images/Glass_short_Black_NOlogo.png" draggable="true" ondragstart="handleDragStart(event)"><span>Black Glass without Logo</span></div>
+        <div class="option"><img src="images/Glass_short_Black_old_Haushanh.png" draggable="true" ondragstart="handleDragStart(event)"><span>Glass with old Hausanh Logo</span></div>
+        <div class="option"><img src="images/Glass_short_Black_new_Haushanh.png" draggable="true" ondragstart="handleDragStart(event)"><span>Glass with new Hausanh Logo</span></div>
+        <div class="option"><img src="images/Glass_short_Black_old_AS_IT.png" draggable="true" ondragstart="handleDragStart(event)"><span>Glass with old AS Logo (IT)</span></div>
+        <div class="option"><img src="images/Glass_short_Black_old_AS_DE.png" draggable="true" ondragstart="handleDragStart(event)"><span>Glass with old AS Logo (DE)</span></div>
+        <div class="option"><img src="images/Glass_short_Black_old_AS_FR.png" draggable="true" ondragstart="handleDragStart(event)"><span>Glass with old AS Logo (FR)</span></div>
+        <div class="option"><img src="images/Glass_short_Black_AS.png" draggable="true" ondragstart="handleDragStart(event)"><span>Glass with New AS Logo (FR)</span></div>		
+      </div>
+    </div>
+  </details>
+  <details><summary>Key Type</summary>
+    <div class="form-group">
+      <input type="text" class="image-search" placeholder="Search..." oninput="filterImages(this)">
+      <div class="drag-options">
+        <div class="option"><img src="images/KABA.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 1</span></div>
+        <div class="option"><img src="images/KABA_LP.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 2</span></div>	
+        <div class="option"><img src="images/KABA_LP_FIRE.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 3</span></div>	
+        <div class="option"><img src="images/KABA_LP_ACK.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 4</span></div>		
+        <div class="option"><img src="images/KABA_BKHL.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 5</span></div>
+        <div class="option"><img src="images/KABA_LP_BKHL.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 6</span></div>
+        <div class="option"><img src="images/KABA_LP_FIRE_BKHL.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 7</span></div>
+        <div class="option"><img src="images/KABA_LP_BKHL_ACK.png" draggable="true" ondragstart="handleDragStart(event)"><span>Key 8</span></div>		
+      </div>
+    </div>
+  </details>
+  <details><summary>Lamp and Sticker Type</summary>
+    <div class="form-group">
+      <input type="text" class="image-search" placeholder="Search..." oninput="filterImages(this)">
+      <div class="drag-options">
+        <div class="option"><img src="images/label_FF.png" draggable="true" ondragstart="handleDragStart(event)"><span>FF label</span></div>
+        <div class="option"><img src="images/lamp.png" draggable="true" ondragstart="handleDragStart(event)"><span>Green Lamp</span></div>	
+        <div class="option"><img src="images/lamp_2.png" draggable="true" ondragstart="handleDragStart(event)"><span>Neutral Lamp</span></div>		
+      </div>
+    </div>
+  </details>
+</details>
+`,
+      LOP: `WORK IN PROGRESS`,
+      LIP: `WORK IN PROGRESS`
+    };
+
+    /* ==========================
+       G) Costruzione menu + switch con conferma
+       ========================== */
+    const originalSwitchMenu = type => {
+      const c = document.getElementById('menu-content');
+      c.classList.remove('visible');
+      setTimeout(() => {
+        c.innerHTML = `
+<details open id="general-info">
+  <summary>General Information</summary>
+  <div class="form-group"><label>Commission Number</label>
+    <input type="text" id="commissionNumber" placeholder="Enter commission number" />
+  </div>
+  <div class="form-group"><label>Fixture Line</label>
+    <select id="fixtureLine">
+      <option value="" disabled selected>-- Seleziona un'opzione --</option>
+      <option>FI GS 100</option>
+      <option>FI GS 120</option>
+      <option>FI GS 300</option>
+      <option>FI GS 500</option>
+      <option>FI GS 600</option>
+    </select>
+  </div>
+</details>` + menus[type];
+        c.classList.add('visible');
+        attachGeneralInfoListener();
+        attachMaterialListener();
+        attachLayoutListener();
+        wireSearchClearButtons();
+      }, 100);
+
+      document.querySelectorAll('.tab-nav a').forEach(a => a.classList.remove('active'));
+      document.getElementById('btn-' + type).classList.add('active');
+    };
+
+    // Wrapper con conferma ad OGNI cambio configuratore
+    let currentMenuType = null;
+    function switchMenu(targetType) {
+      if (!currentMenuType) { // primo avvio: nessun popup
+        originalSwitchMenu(targetType);
+        wireSearchClearButtons();
+        currentMenuType = targetType;
+        return false;
+      }
+
+      if (targetType !== currentMenuType) {
+        const ok = confirm(`Attenzione!
+
+Stai per cambiare configuratore da ${currentMenuType} a ${targetType}.
+Le modifiche fatte verranno perse (layout, bottoni e testi).
+Esegui prima un Export (PDF) se vuoi conservarle.
+
+Procedere?`);
+        if (!ok) return false;
+        try { resetConfigurator(); } catch (_) {}
+      }
+
+      originalSwitchMenu(targetType);
+      currentMenuType = targetType;
+      return false; // evita il salto del link
+    }
+
+    /* ==========================
+       H) Save / Upload configuration (JSON)
+       ========================== */
+    function collectCurrentState() {
+      const menuType = window.currentMenuType || 'COP';
+      const container = document.getElementById('menu-content');
+      const fields = {};
+      if (container) {
+        const els = container.querySelectorAll('select, input[type="text"]');
+        let idx = 0;
+        els.forEach(el => {
+          if (el.classList.contains('image-search')) return; // ignora i campi di ricerca
+          const key = el.id || el.name || `field_${idx++}`;
+          fields[key] = el.value;
+        });
+      }
+      // Overlay state
+      const overlay = { top: null, main: [], bottom: [] };
+      const viewer = document.getElementById('viewer');
+      const root = viewer && viewer.querySelector('.overlay-root');
+      if (root) {
+        // top slot = slot diretto figlio della root
+        const topSlot = Array.from(root.children).find(n => n.classList?.contains('slot')) || null;
+        if (topSlot) overlay.top = readSlot(topSlot);
+        const grids = root.querySelectorAll('.grid-overlay');
+        const mainGrid = grids[0];
+        const botGrid  = grids[1];
+        if (mainGrid) mainGrid.querySelectorAll('.slot').forEach(s => overlay.main.push(readSlot(s)));
+        if (botGrid)  botGrid.querySelectorAll('.slot').forEach(s => overlay.bottom.push(readSlot(s)));
+      }
+      return { version: 1, menuType, fields, overlay };
+
+      function readSlot(slot) {
+        const wrap = slot.querySelector('.dropped-button');
+        if (!wrap) return null;
+        const img = wrap.querySelector('img');
+        const input = wrap.querySelector('input.button-input');
+        return {
+          typeName: wrap.dataset.typeName || '',
+          imgSrc: img ? img.getAttribute('src') : '',
+          text: input ? input.value : ''
+        };
+      }
+    }
+
+    function downloadJSON(filename, dataObj) {
+      const blob = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function saveConfiguration() {
+      const state = collectCurrentState();
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const name = `config-${state.menuType}-${ts}.json`;
+      downloadJSON(name, state);
+    }
+
+    function promptUpload() {
+      const inp = document.getElementById('configFileInput');
+      if (!inp) return;
+      inp.value = '';
+      inp.onchange = e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const cfg = JSON.parse(String(reader.result));
+            applyConfiguration(cfg);
+          } catch(err) {
+            alert('File non valido o corrotto.');
+          }
+        };
+        reader.readAsText(file);
+      };
+      inp.click();
+    }
+
+    function applyConfiguration(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      const targetType = cfg.menuType || 'COP';
+      // Cambia menu senza popup (azione intenzionale dell'utente)
+      if (window.currentMenuType !== targetType) {
+        if (typeof originalSwitchMenu === 'function') {
+          originalSwitchMenu(targetType);
+          window.currentMenuType = targetType;
+        } else if (typeof switchMenu === 'function') {
+          // fallback
+          switchMenu(targetType);
+        }
+      }
+      // Applica dopo che il menu è stato costruito
+      setTimeout(() => {
+        // campi
+        const applyField = (id, val, eventName) => {
+          const el = document.getElementById(id);
+          if (el) { el.value = val; el.dispatchEvent(new Event(eventName || 'input', { bubbles: true })); }
+        };
+        if (cfg.fields) {
+          if (cfg.fields.commissionNumber != null) applyField('commissionNumber', cfg.fields.commissionNumber, 'input');
+          if (cfg.fields.fixtureLine != null)      applyField('fixtureLine',      cfg.fields.fixtureLine,      'change');
+          if (cfg.fields.materialFinishing != null) applyField('materialFinishing', cfg.fields.materialFinishing, 'change');
+          if (cfg.fields.layoutCOP != null)         applyField('layoutCOP',         cfg.fields.layoutCOP,         'change');
+        }
+        // (ri)popola overlay se presente
+        const viewer = document.getElementById('viewer');
+        const root = viewer && viewer.querySelector('.overlay-root');
+        if (root && cfg.overlay) {
+          const grids = root.querySelectorAll('.grid-overlay');
+          const mainGrid = grids[0];
+          const botGrid  = grids[1];
+          // top
+          const topSlot = Array.from(root.children).find(n => n.classList?.contains('slot')) || null;
+          if (topSlot) placeInSlot(topSlot, cfg.overlay.top);
+          // main
+          if (mainGrid && Array.isArray(cfg.overlay.main)) {
+            const slots = mainGrid.querySelectorAll('.slot');
+            cfg.overlay.main.forEach((item, i) => { if (slots[i]) placeInSlot(slots[i], item); });
+          }
+          // bottom
+          if (botGrid && Array.isArray(cfg.overlay.bottom)) {
+            const slots = botGrid.querySelectorAll('.slot');
+            cfg.overlay.bottom.forEach((item, i) => { if (slots[i]) placeInSlot(slots[i], item); });
+          }
+        }
+        // riallinea scala dopo il popolamento
+        if (typeof scaleOverlayResponsive === 'function') requestAnimationFrame(scaleOverlayResponsive);
+      }, 120);
+
+      function placeInSlot(slot, item) {
+        if (!slot) return; slot.innerHTML = '';
+        if (!item) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'dropped-button';
+        wrap.dataset.typeName = item.typeName || '';
+        const img = document.createElement('img');
+        img.src = item.imgSrc || '';
+        wrap.appendChild(img);
+        // input opzionale per i bottoni che supportano il testo
+        const needsInput = /Main Floor Button|Floor Button/i.test(item.typeName || '') || (item.text && item.text.length);
+        if (needsInput) {
+          const input = document.createElement('input');
+          input.type = 'text'; input.maxLength = 2; input.className = 'button-input';
+          input.value = item.text || '';
+          input.style.color = (item.typeName || '').toLowerCase().includes('black') ? 'white' : 'black';
+          input.setAttribute('size', String(Math.max(input.value.length, 1)));
+          input.style.fontSize = '0.8rem';
+          input.addEventListener('input', e => {
+            const len = Math.max(e.target.value.length, 1);
+            e.target.setAttribute('size', String(len));
+            e.target.style.fontSize = '0.8rem';
+          });
+          wrap.appendChild(input);
+        }
+        slot.appendChild(wrap);
+		slot.classList.add('filled');
+      }
+    }
+
+function getExportTitle(){
+  // Prova a dedurre un titolo simile allo sketch
+  const type = (window.currentMenuType || 'COP').toUpperCase();
+  if (type === 'COP') return 'Car operating panel';
+  if (type === 'LOP') return 'Landing operating panel';
+  if (type === 'LIP') return 'Landing indicator panel';
+  return 'Operating panel';
+}
+
+function exportPDF() {
+  try {
+    document.body.classList.remove('printing');
+    const old = document.getElementById('print-sheet');
+    if (old) old.remove();
+  } catch(_) {}
+
+  const viewer = document.getElementById('viewer');
+  if (!viewer) { window.print(); return; }
+
+  // utilità
+  const mmToPx = mm => mm * (96 / 25.4);
+
+  // ===== 1) Costruisci il foglio =====
+  const sheet  = document.createElement('div'); sheet.id = 'print-sheet';
+
+  // >>> NOVITÀ: contenitore interno che verrà scalato (NON il foglio)
+  const inner  = document.createElement('div'); inner.id = 'print-inner';
+
+  // blocchi del layout
+  const header = document.createElement('div'); header.id = 'print-header';
+  const left   = document.createElement('div'); left.id   = 'print-left';
+  const right  = document.createElement('div'); right.id  = 'print-right';
+
+  inner.append(header, left, right);
+  sheet.appendChild(inner);
+  document.body.appendChild(sheet);
+
+  // Logo in header (se esiste in pagina)
+  const logoSrcEl = document.querySelector('img[alt*="schindler" i], .logo img, header img, nav img');
+  if (logoSrcEl) {
+    const logo = document.createElement('img');
+    logo.src = logoSrcEl.src;
+    logo.className = 'print-logo';
+    header.appendChild(logo);
+  }
+
+  // ===== 2) Clona viewer e rimuovi l'info-bar interna =====
+  const vClone = viewer.cloneNode(true);
+  materializeButtonTexts(viewer, vClone);
+  const ibInside = vClone.querySelector('#info-bar, .info-bar'); 
+  if (ibInside) ibInside.remove();
+
+  // ===== 3) Sincronizza contenuti dinamici nel clone =====
+  syncFormControls(viewer, vClone);
+  syncContentEditable(viewer, vClone);
+  convertCanvasToImg(viewer, vClone);
+
+  // ===== 4) Congela dimensioni e mantieni ingombri delle celle =====
+  const origImg = viewer.querySelector('.image-viewer img');
+  const imgRect = origImg ? origImg.getBoundingClientRect() : viewer.getBoundingClientRect();
+  Object.assign(vClone.style, {
+    width:  imgRect.width  + 'px',
+    height: imgRect.height + 'px',
+    boxSizing: 'border-box'
+  });
+
+  const origSlots  = viewer.querySelectorAll('.slot');
+  const cloneSlots = vClone.querySelectorAll('.slot');
+  for (let i = 0; i < cloneSlots.length; i++) {
+    const o = origSlots[i], c = cloneSlots[i];
+    if (!o || !c) continue;
+    const r = o.getBoundingClientRect();
+    const filled = o.classList.contains('filled') || o.querySelector('.dropped-button');
+    Object.assign(c.style, {
+      width:  r.width  + 'px',
+      height: r.height + 'px',
+      minWidth:  r.width  + 'px',
+      minHeight: r.height + 'px',
+      boxSizing: 'border-box'
+    });
+    if (!filled) c.classList.add('print-keep-space');
+  }
+
+  // ===== 5) Monta i due pannelli =====
+  // sinistra: viewer clonato
+  const wrap = document.createElement('div');
+  wrap.className = 'viewer-wrap';
+  wrap.appendChild(vClone);
+  left.appendChild(wrap);
+
+  // destra: card info (titolo + valori)
+  const card  = document.createElement('div'); 
+  card.className = 'print-card';
+
+  const title = document.createElement('h2');
+  title.className = 'print-title';
+  title.textContent = (typeof getExportTitle === 'function' ? getExportTitle() : 'Car operating panel');
+  card.appendChild(title);
+
+  // valori presi dai campi correnti
+  const cm = document.getElementById('commissionNumber');
+  const fl = document.getElementById('fixtureLine');
+  const mf = document.getElementById('materialFinishing');
+  const ly = document.getElementById('layoutCOP');
+
+  const layoutText = ly && ly.selectedIndex > 0 ? ly.options[ly.selectedIndex].text.trim() : '';
+  const enYes = /EN\s*81\s*-\s*70|EN81\s*[- ]?\s*70/i.test(layoutText);
+
+  const kv = document.createElement('div');
+  kv.className = 'kv';
+  kv.innerHTML = ''
+    + '<div class="k">Commission number</div><div class="v">' + ((cm && cm.value.trim()) || '-') + '</div>'
+    + '<div class="k">Fixture line</div><div class="v">' + ((fl && fl.selectedIndex>0 ? fl.options[fl.selectedIndex].text : '-') ) + '</div>'
+    + '<div class="k">Material finishing</div><div class="v">' + ((mf && mf.selectedIndex>0 ? mf.options[mf.selectedIndex].text : '-') ) + '</div>'
+    + '<div class="k">Nomative EN81-70</div><div class="v">' + (enYes ? 'YES' : 'NO') + '</div>';
+  card.appendChild(kv);
+
+  right.appendChild(card);
+
+  // ===== 6) Scala SOLO l'interno per farlo stare in UNA pagina =====
+  requestAnimationFrame(() => {
+    const availW = mmToPx(210 - 2*10);          // A4 - 2*10mm margini
+    const availH = mmToPx(297 - 2*10) - mmToPx(6); // piccolo margine per eventuale footer del browser
+
+    inner.style.transform = 'none';
+    const r = inner.getBoundingClientRect();
+    const scale = Math.min(availW / r.width, availH / r.height, 1);
+
+    inner.style.transform = `scale(${scale})`;
+
+    // stampa + cleanup
+    document.body.classList.add('printing');
+    window.print();
+    const cleanup = () => {
+      document.body.classList.remove('printing');
+      sheet.remove();
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+  });
+
+  // ===== helpers interni =====
+  function syncFormControls(origRoot, cloneRoot) {
+    const oCtrls = origRoot.querySelectorAll('input, textarea, select');
+    const cCtrls = cloneRoot.querySelectorAll('input, textarea, select');
+    for (let i = 0; i < cCtrls.length; i++) {
+      const o = oCtrls[i], c = cCtrls[i];
+      if (!o || !c) continue;
+      const tag = c.tagName.toLowerCase();
+      if (tag === 'input') {
+        const type = (c.getAttribute('type') || 'text').toLowerCase();
+        if (type === 'checkbox' || type === 'radio') c.checked = o.checked;
+        else c.value = o.value;
+      } else if (tag === 'textarea') {
+        c.value = o.value;
+      } else if (tag === 'select') {
+        c.selectedIndex = o.selectedIndex;
+      }
+    }
+  }
+  function syncContentEditable(origRoot, cloneRoot) {
+    const oCE = origRoot.querySelectorAll('[contenteditable="true"]');
+    const cCE = cloneRoot.querySelectorAll('[contenteditable="true"]');
+    for (let i = 0; i < cCE.length; i++) {
+      if (oCE[i] && cCE[i]) cCE[i].innerHTML = oCE[i].innerHTML;
+    }
+  }
+  function convertCanvasToImg(origRoot, cloneRoot) {
+    const oCanvas = origRoot.querySelectorAll('canvas');
+    const cCanvas = cloneRoot.querySelectorAll('canvas');
+    for (let i = 0; i < cCanvas.length; i++) {
+      const oc = oCanvas[i], cc = cCanvas[i];
+      if (!oc || !cc) continue;
+      try {
+        const dataURL = oc.toDataURL('image/png');
+        const img = new Image();
+        img.src = dataURL;
+        img.style.width  = (cc.style.width  || cc.width  + 'px');
+        img.style.height = (cc.style.height || cc.height + 'px');
+        cc.replaceWith(img);
+      } catch (e) {
+        try { cc.getContext('2d').drawImage(oc, 0, 0); } catch(_) {}
+      }
+    }
+  }
+}
+
+function materializeButtonTexts(origRoot, cloneRoot){
+  const oInputs = origRoot.querySelectorAll('.button-input');
+  const cInputs = cloneRoot.querySelectorAll('.button-input');
+
+  for (let i = 0; i < cInputs.length; i++){
+    const o = oInputs[i];
+    const c = cInputs[i];
+    if (!c) continue;
+
+    // valore
+    const val = (o && typeof o.value === 'string') ? o.value : c.value;
+    c.value = val || '';
+
+    // wrapper del bottone per capire il tipo (black / sandblast)
+    const wrapClone = c.closest('.dropped-button');
+    const typeName  = (wrapClone && wrapClone.dataset && wrapClone.dataset.typeName) ? wrapClone.dataset.typeName.toLowerCase() : '';
+
+    // crea lo span stampabile
+    const span = document.createElement('span');
+    span.className = 'print-button-text';
+    span.textContent = c.value || '';
+
+    // stile dal nodo ORIGINALE (è nel DOM, getComputedStyle è affidabile)
+    let color = '#111', fontSize = '1rem', fontFamily = 'inherit';
+    try {
+      if (o) {
+        const cs = getComputedStyle(o);
+        color      = cs.color || color;
+        fontSize   = cs.fontSize || fontSize;
+        fontFamily = cs.fontFamily || fontFamily;
+      }
+    } catch(_) {}
+
+    // se è un bottone "black", forziamo bianco per sicurezza
+    if (/black/.test(typeName)) color = '#fff';
+
+    span.style.color = color;
+    span.style.fontSize = '0.8rem';
+    span.style.fontFamily = fontFamily;
+    span.style.fontWeight = '700';
+    span.style.lineHeight = '1';
+
+    // rimpiazza l'input nel CLONE
+    c.replaceWith(span);
+  }
+}
+  
+    /* ==========================
+       H) Reset helpers (Reset + conferma)
+       ========================== */
+    function resetConfigurator() {
+      const container = document.getElementById('menu-content');
+      if (container) {
+        // Reset selects
+        const selects = container.querySelectorAll('select');
+        selects.forEach(sel => {
+          const placeholderIndex = Array.from(sel.options).findIndex(o => o.disabled || /--/i.test(o.textContent));
+          sel.selectedIndex = placeholderIndex >= 0 ? placeholderIndex : 0;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        // Reset input testo
+        const inputs = container.querySelectorAll('input[type="text"], .button-input');
+        inputs.forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); });
+      }
+      // Reset viewer
+      const viewer = document.getElementById('viewer');
+      if (viewer) viewer.innerHTML = '<p>Seleziona un materiale per visualizzare l\'immagine</p>';
+      // Reset info bar
+      const bar = document.getElementById('info-bar');
+      if (bar) bar.textContent = '';
+    }
+
+    function confirmReset() {
+      const ok = confirm('Confermi di voler resettare e perdere tutte le modifiche?');
+      if (ok) resetConfigurator();
+    }
+
+    /* ==========================
+       I) Bootstrapping (DOMContentLoaded, resize, onload)
+       ========================== */
+    window.addEventListener('DOMContentLoaded', wireSearchClearButtons);
+    window.addEventListener('resize', scaleOverlayResponsive);
+    window.onload = () => { switchMenu('COP'); scaleOverlayResponsive(); };
+  </script>
+<script>
+// === Safe add-on script: Info-bar logic & bugfixes (non-destructive) ===
+function ensureInfoBarNode() {
+  const viewer = document.getElementById('viewer');
+  if (!viewer) return null;
+  let bar = viewer.querySelector('#info-bar');
+  if (!bar) {
+    bar = document.createElement('aside');
+    bar.id = 'info-bar';
+    bar.className = 'info-bar';
+    viewer.appendChild(bar);
+  }
+  return bar;
+}
+function readSelect(selectEl) {
+  if (!selectEl) return { value: '', text: '', isPlaceholder: true };
+  const idx = selectEl.selectedIndex;
+  const opt = selectEl.options && selectEl.options[idx];
+  const value = selectEl.value || '';
+  const text = opt ? (opt.textContent || '').trim() : '';
+  const isPlaceholder = (idx === 0) || (value === '') || (opt && opt.disabled);
+  return { value: isPlaceholder ? '' : value, text: isPlaceholder ? '' : text, isPlaceholder };
+}
+function renderInfoBar() {
+  const bar = ensureInfoBarNode();
+  if (!bar) return;
+  const cm = document.getElementById('commissionNumber');
+  const fl = document.getElementById('fixtureLine');
+  const mf = document.getElementById('materialFinishing');
+  const ly = document.getElementById('layoutCOP');
+  const commission = (cm && cm.value.trim()) || '';
+  const fixture = readSelect(fl);
+  const material = readSelect(mf);
+  const layout = readSelect(ly);
+  const layoutText = layout.text || '';
+  const enYes = /EN\s*81\s*-\s*70|EN81\s*[- ]?\s*70/i.test(layoutText);
+  const hasSomething = !!(commission || fixture.text || material.text || layout.text);
+  if (!hasSomething) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  bar.style.display = 'grid';
+  bar.innerHTML = `
+    <div class="info-kv">
+      <div class="k">Commission number</div><div class="v">${commission || '-'}</div>
+      <div class="k">Fixture line</div><div class="v">${fixture.text || '-'}</div>
+      <div class="k">Material finishing</div><div class="v">${material.text || '-'}</div>
+      <div class="k">Nomative EN81-70</div>
+      <div class="v">${enYes ? 'YES' : 'NO'}</div>
+    </div>
+  `;
+}
+(function hookApp() {
+  const w = window;
+  function wrap(fnName, after) {
+    const orig = w[fnName];
+    if (typeof orig === 'function') {
+      w[fnName] = function() {
+        const res = orig.apply(this, arguments);
+        try { after(); } catch(e) {}
+        return res;
+      };
+    }
+  }
+  function afterAnyChange() {
+    ensureInfoBarNode();
+    renderInfoBar();
+  }
+  wrap('updateMaterialImage', afterAnyChange);
+  wrap('updateLayoutGrid', afterAnyChange);
+  if (typeof w.resetConfigurator === 'function') {
+    wrap('resetConfigurator', afterAnyChange);
+  } else {
+    w.resetConfigurator = function() {
+      const cm = document.getElementById('commissionNumber');
+      const ids = ['fixtureLine', 'materialFinishing', 'layoutCOP'];
+      if (cm) cm.value = '';
+      ids.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.selectedIndex = 0;
+      });
+      try { if (typeof updateMaterialImage === 'function') updateMaterialImage(); } catch(e){}
+      try { if (typeof updateLayoutGrid === 'function') updateLayoutGrid(''); } catch(e){}
+      afterAnyChange();
+    };
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    ensureInfoBarNode();
+    renderInfoBar();
+    const cm = document.getElementById('commissionNumber');
+    const fl = document.getElementById('fixtureLine');
+    const mf = document.getElementById('materialFinishing');
+    const ly = document.getElementById('layoutCOP');
+    if (cm) cm.addEventListener('input', renderInfoBar);
+    if (fl) fl.addEventListener('change', renderInfoBar);
+    if (mf) mf.addEventListener('change', renderInfoBar);
+    if (ly) ly.addEventListener('change', renderInfoBar);
+  });
+})();
+</script>
+
+<script>
+// === Info-bar dynamic upgrade ===
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function ensureInfoBarNode() {
+    const viewer = $('viewer');
+    if (!viewer) return null;
+    let bar = viewer.querySelector('#info-bar');
+    if (!bar) {
+      bar = document.createElement('aside');
+      bar.id = 'info-bar';
+      bar.className = 'info-bar';
+      viewer.appendChild(bar);
+    }
+    return bar;
+  }
+  function readSelect(selectEl) {
+    if (!selectEl) return { value:'', text:'', isPlaceholder:true };
+    const idx = selectEl.selectedIndex;
+    const opt = selectEl.options && selectEl.options[idx];
+    const value = selectEl.value || '';
+    const text = opt ? (opt.textContent || '').trim() : '';
+    const isPlaceholder = (idx === 0) || (value === '') || (opt && opt.disabled);
+    return { value: isPlaceholder ? '' : value, text: isPlaceholder ? '' : text, isPlaceholder };
+  }
+  function renderInfoBar() {
+    const bar = ensureInfoBarNode();
+    if (!bar) return;
+    const cm = $('commissionNumber');
+    const fl = $('fixtureLine');
+    const mf = $('materialFinishing');
+    const ly = $('layoutCOP');
+    const commission = (cm && cm.value.trim()) || '';
+    const fixture = readSelect(fl);
+    const material = readSelect(mf);
+    const layout = readSelect(ly);
+    const layoutText = layout.text || '';
+    const enYes = /EN\s*81\s*-\s*70|EN81\s*[- ]?\s*70/i.test(layoutText);
+    const hasSomething = !!(commission || fixture.text || material.text || layout.text);
+    if (!hasSomething) {
+      bar.style.display = 'none';
+      bar.innerHTML = '';
+      return;
+    }
+    bar.style.display = 'grid';
+    bar.innerHTML = ''
+      + '<div class="info-kv">'
+      +   '<div class="k">Commission number</div><div class="v">' + (commission || '-') + '</div>'
+      +   '<div class="k">Fixture line</div><div class="v">' + (fixture.text || '-') + '</div>'
+      +   '<div class="k">Material finishing</div><div class="v">' + (material.text || '-') + '</div>'
+      +   '<div class="k">Nomative EN81-70</div>'
+      +   '<div class="v">' + (enYes ? 'YES' : 'NO') + '</div>'
+      + '</div>';
+  }
+  // Throttled render
+  let raf = null;
+  function scheduleRender(){ if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(renderInfoBar); }
+  // Delegated listeners
+  document.addEventListener('input', function(e){
+    const id = (e.target && e.target.id) || '';
+    if (id === 'commissionNumber') scheduleRender();
+  }, true);
+  document.addEventListener('change', function(e){
+    const id = (e.target && e.target.id) || '';
+    if (id === 'fixtureLine' || id === 'materialFinishing' || id === 'layoutCOP') scheduleRender();
+  }, true);
+  // MutationObserver
+  var leftPanel = document.querySelector('.left-panel, #left-panel, .sidebar, #sidebar') || document.body;
+  var mo = new MutationObserver(function(muts){
+    for (var m of muts) { scheduleRender(); break; }
+  });
+  mo.observe(leftPanel, { subtree:true, childList:true, attributes:true, attributeFilter:['value','selected','class'] });
+  // Hook common functions
+  (function wrapHooks(){
+    var w = window;
+    function wrap(name){
+      var orig = w[name];
+      if (typeof orig === 'function') {
+        w[name] = function(){ var r = orig.apply(this, arguments); try{ scheduleRender(); }catch(e){} return r; };
+      }
+    }
+    ['updateMaterialImage','updateLayoutGrid','applyConfiguration','resetConfigurator'].forEach(wrap);
+  })();
+  document.addEventListener('DOMContentLoaded', function(){ ensureInfoBarNode(); scheduleRender(); });
+})();
+</script>
+
+</body>
+</html>
+
